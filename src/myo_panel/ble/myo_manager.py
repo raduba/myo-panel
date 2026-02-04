@@ -191,15 +191,15 @@ class MyoManager:
     # ── internal coroutines ──────────────────────────────────────────────
     async def _scan(self):
         if self._shutting_down: return []
-        devs = await BleakScanner.discover(timeout=4.0)
+        devs = await BleakScanner.discover(timeout=4.0, return_adv=True)
         out: Dict[str, object] = {} # Using object if BLEDevice type hint is problematic, BleakScanner.discover returns BLEDevice instances
-        for d in devs:
+        for d, advertisement_data in devs.values():
             name = (d.name or "").lower()
             
             current_service_uuids = []
-            if hasattr(d, 'advertisement_data') and d.advertisement_data and hasattr(d.advertisement_data, 'service_uuids'):
+            if advertisement_data and hasattr(advertisement_data, 'service_uuids'):
                 # New recommended way
-                current_service_uuids = [str(u).lower() for u in d.advertisement_data.service_uuids]
+                current_service_uuids = [str(u).lower() for u in advertisement_data.service_uuids]
             elif hasattr(d, 'metadata') and d.metadata:
                 # Fallback to the metadata method that previously worked (and gave a FutureWarning)
                 # The original code used d.metadata.get("uuids", [])
@@ -207,7 +207,7 @@ class MyoManager:
                 current_service_uuids = [str(u).lower() for u in raw_uuids_from_meta]
             # If neither is available, current_service_uuids will be an empty list.
 
-            if "myo" in name or any(u.startswith(C.MYO_SERVICE_PREFIX) for u in current_service_uuids):
+            if C.MYO_DEVICE_NAME_PART in name or any(u.startswith(C.MYO_SERVICE_PREFIX) for u in current_service_uuids):
                 out.setdefault(d.address, d)
         return [{"name": d.name or "Myo Armband", "address": d.address} for d in out.values()]
 
