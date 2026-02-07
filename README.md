@@ -70,6 +70,26 @@ pip install dist/myo_panel-*.whl
 
 ## Usage
 
+### Setup the Default Recording Output Path
+
+While not mandatory, it is preferable that you set up a default output path for the recorded sessions, so that the recording path does not depend on application's startup location.
+
+The default output path is read from the `SMART_LAB_DATA_PATH` environment variable. Without changing the output path in the UI, the recordings will be saved under `$SMART_LAB_DATA_PATH/myoband`
+
+On Linux/macOS, you can update your `~/.bash_profile` or `~/.bashrc` to add:
+
+```
+export SMART_LAB_DATA_PATH="/path/to/data"
+```
+
+On Windows, you can use `cmd`:
+
+```
+setx SMART_LAB_DATA_PATH "C:\Path\To\My\Data"
+```
+
+You will need to restart the `cmd` application for the changes to take effect.
+
 ### Starting the Application
 
 After installation/build:

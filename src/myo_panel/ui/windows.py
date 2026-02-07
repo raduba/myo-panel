@@ -800,6 +800,8 @@ class MainWindow(QMainWindow):
                 print("MainWindow: Forcing camera_manager stop as a fallback.")
                 self.vision_recording.camera_manager.stop()
         
+        self.record_panel.handle_close_event()
+        
         # Call parent's closeEvent
         super().closeEvent(event)
         print("MainWindow: closeEvent completed. Application should now exit if all non-daemon threads are done.")
