@@ -9,6 +9,11 @@ import datetime, os, csv, pickle
 import time
 import numpy as np
 
+
+SMARTLAB_DATA_PATH_ENV_KEY = "SMART_LAB_DATA_PATH"
+SMARTLAB_DATA_MYOBAND_PATH = "myoband"
+
+
 class RecordingPanel(QGroupBox):
     def __init__(self, myo_manager, parent=None):
         super().__init__(parent)
@@ -26,7 +31,12 @@ class RecordingPanel(QGroupBox):
         # Path field and browse button
         path_layout = QHBoxLayout()
         # Set default save path to workspace_root/output
-        default_save_path = os.path.join(os.getcwd(), "output") 
+        relative_save_path = os.path.join(os.getcwd(), "output")
+        smartlab_data_path = os.getenv(SMARTLAB_DATA_PATH_ENV_KEY)
+        default_save_path = (
+            relative_save_path if not smartlab_data_path 
+            else os.path.join(smartlab_data_path, SMARTLAB_DATA_MYOBAND_PATH)
+        )
         self.path_edit = QLineEdit(placeholderText="Save path", text=default_save_path)
         self.browse_btn = QPushButton("📁")
         self.browse_btn.setFixedWidth(30)
@@ -166,6 +176,10 @@ class RecordingPanel(QGroupBox):
                 
         self._save_file()
 
+    def handle_close_event(self):
+        if self._active:
+            self._stop_recording()
+
     def push_frame(self, frame: list[int], timestamp=None, raw_hex=None):
         """Called by the UI to record one EMG frame."""
         if not getattr(self, "_active", False):
@@ -234,6 +248,8 @@ class RecordingPanel(QGroupBox):
         if not directory:
             print("[Recorder] No directory provided.")
             return
+        else:
+            os.makedirs(directory, exist_ok=True)
 
         # Construct filename
         now = datetime.datetime.now()
