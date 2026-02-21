@@ -180,7 +180,7 @@ class RecordingPanel(QGroupBox):
         if self._active:
             self._stop_recording()
 
-    def push_frame(self, frame: list[int], timestamp=None, raw_hex=None):
+    def push_frame(self, frame: list[int], timestamp=None, raw_hex=None, marker=0.0):
         """Called by the UI to record one EMG frame."""
         if not getattr(self, "_active", False):
             return
@@ -208,7 +208,8 @@ class RecordingPanel(QGroupBox):
                 "type": "EMG",
                 "raw_hex": raw_hex,
                 "label": label,
-                "vision": vision_data
+                "vision": vision_data,
+                "marker": marker
             })
         elif frame is not None:
             # Store processed data with current IMU state
@@ -217,7 +218,8 @@ class RecordingPanel(QGroupBox):
                 "emg": frame.copy(),
                 "imu": self._last_imu.copy(),
                 "label": label,
-                "vision": vision_data
+                "vision": vision_data,
+                "marker": marker
             })
 
     def push_imu(self, quat, acc, gyro, timestamp=None, raw_hex=None):
@@ -309,14 +311,15 @@ class RecordingPanel(QGroupBox):
                     writer = csv.writer(f)
                     if self.raw_chk.isChecked():
                         # Write raw hex data
-                        f.write("# Format: timestamp,type,raw_hex,label\n")
-                        writer.writerow(["timestamp", "type", "raw_hex", "label"])
+                        f.write("# Format: timestamp,type,raw_hex,label,marker\n")
+                        writer.writerow(["timestamp", "type", "raw_hex", "label", "marker"])
                         for row in self._recording:
                             writer.writerow([
                                 row["timestamp"],
                                 row["type"],
                                 row["raw_hex"],
-                                row["label"]
+                                row["label"],
+                                row.get("marker", 0.0)
                             ])
                     else:
                         # Write processed data with EMG and IMU together
@@ -329,7 +332,7 @@ class RecordingPanel(QGroupBox):
                                "".join([f",hand1_landmark{i}_x,hand1_landmark{i}_y,hand1_landmark{i}_z" for i in range(21)]) +
                                ",hand2_type" +
                                "".join([f",hand2_landmark{i}_x,hand2_landmark{i}_y,hand2_landmark{i}_z" for i in range(21)]) +
-                               "\n")
+                               ",marker\n")
                         
                         # Write processed data with EMG and IMU together
                         # Add comment explaining vision data format
@@ -346,7 +349,7 @@ class RecordingPanel(QGroupBox):
                                "".join([f",hand1_landmark{i}_x,hand1_landmark{i}_y,hand1_landmark{i}_z" for i in range(21)]) +
                                ",hand2_type" +
                                "".join([f",hand2_landmark{i}_x,hand2_landmark{i}_y,hand2_landmark{i}_z" for i in range(21)]) +
-                               "\n")
+                               ",marker\n")
 
                         writer.writerow(
                             ["timestamp"] +
@@ -358,7 +361,8 @@ class RecordingPanel(QGroupBox):
                             ["hand_count", "hand1_type"] +
                             [f"hand1_landmark{i}_{coord}" for i in range(21) for coord in ["x", "y", "z"]] +
                             ["hand2_type"] +
-                            [f"hand2_landmark{i}_{coord}" for i in range(21) for coord in ["x", "y", "z"]]
+                            [f"hand2_landmark{i}_{coord}" for i in range(21) for coord in ["x", "y", "z"]] +
+                            ["marker"]
                         )
 
                         for row in self._recording:
@@ -432,6 +436,9 @@ class RecordingPanel(QGroupBox):
                                 data.extend(hand1_landmarks)
                                 data.append(hand2_type)
                                 data.extend(hand2_landmarks)
+
+                                # add the marker
+                                data.append(row.get("marker", 0.0))
 
                                 writer.writerow(data)
             else:

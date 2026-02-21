@@ -20,3 +20,4 @@ wheelhouse/
 .DS_Store
 Thumbs.db
 output/
+.idea/
