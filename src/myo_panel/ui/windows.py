@@ -11,15 +11,21 @@ import time
 from .plots import _Ring, EMGGrid, EMGComposite, DEFAULT_SAMPLES
 from .recording import RecordingPanel
 from .imu_viz import MatplotlibIMUCube
+from ..network.marker_events_listener import MarkEventsListener
+
 # Delay importing VisionRecordingWidget for better startup performance
 
 FRAME_UPDATE_INTERVAL   = 100   # ms
 BATTERY_CHECK_INTERVAL  = 5000  # ms
 
+EMPTY_FRAME_DATA = [0 for _ in range(8)]
+EMPTY_DATA_RAW = "0"*32
+
 class MainWindow(QMainWindow):
-    def __init__(self, myo_mgr):
+    def __init__(self, myo_mgr, upd_listener: MarkEventsListener | None):
         super().__init__()
         self.myo = myo_mgr
+        self._mark_events_listener = upd_listener
         self._frame_q = deque(maxlen=500)
         self._ring    = _Ring()
         self._paused  = False
@@ -772,6 +778,11 @@ class MainWindow(QMainWindow):
                     if cam_group:
                         self._populate_camera_menu(cam_menu, cam_group)
 
+    def _marker_event_handler(self, marker_id: float):
+        """a marker event will only insert the marker_id and 0.0 for the sensor values"""
+        print(f"[MainWindow]: MARKER RECEIVED: {marker_id}")
+        self.record_panel.push_frame(EMPTY_FRAME_DATA, raw_hex=EMPTY_DATA_RAW, marker=marker_id)
+
     def closeEvent(self, event):
         """Handle application close."""
         print("MainWindow: closeEvent called.")
@@ -865,6 +876,18 @@ class MainWindow(QMainWindow):
                     if self.myo.connected 
                     else None
                 )
+
+                # start the UDP mark server on a successful connection
+                if self._mark_events_listener is not None:
+                    print("[MainWindow] Starting the marker UDP server...")
+                    self._mark_events_listener.start(self._marker_event_handler)
+                else:
+                    print("[MainWindow] UDP marker server is disabled")
+            else:
+                # stop the UDP mark listener on device disconnects
+                if self._mark_events_listener is not None:
+                    self._mark_events_listener.stop()
+
         except Exception as e:
             print(f"[MainWindow] Error in connection callback: {e}")
     

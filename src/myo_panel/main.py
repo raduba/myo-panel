@@ -1,9 +1,12 @@
 # main.py  (entry-point for `python -m myo_panel` or `myo-panel` script)
+import argparse
 import sys, asyncio, pathlib, time, atexit, signal, os
 from PySide6.QtWidgets import QApplication, QMessageBox
 from qasync import QEventLoop, asyncSlot
+
 from .ble.myo_manager import MyoManager, stop_bg_loop
 from .ui.windows import MainWindow
+from .network.marker_events_listener import MarkEventsListener
 
 import pyqtgraph as pg
 
@@ -29,19 +32,56 @@ def signal_handler(sig, frame):
     QApplication.instance().quit()
 
 def main():
+    # parse the command line arguments for custom UDP port or to disable the UDP listener
+    def _valid_port(arg_value):
+        port = int(arg_value)
+        if port < 1 or port > 65535:
+            raise argparse.ArgumentTypeError(f"{port} is not a valid port number")
+        return port
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--udp-marker-port",
+        "-p",
+        type=_valid_port,
+        default=12390,
+        help="The UDP port for the marker events listener. Default is 12390."
+    )
+    parser.add_argument(
+        "--udp-marker-address",
+        "-a",
+        type=str,
+        default="",
+        help="The UDP listening address. Default is '' for listening on all interfaces."
+    )
+    parser.add_argument(
+        "--disable-udp-markers",
+        action="store_true",
+        help="Disable the UDP marker server"
+    )
+    args = parser.parse_args()
+
     # Register cleanup functions
     atexit.register(cleanup)
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
-    
-    pg.setConfigOptions(useOpenGL=True, antialias=False)     
+
+    pg.setConfigOptions(useOpenGL=True, antialias=False)
 
     app = QApplication(sys.argv)
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
 
+    udp_listener = (
+        None if args.disable_udp_markers
+        else MarkEventsListener(
+            listening_address=args.udp_marker_address,
+            listening_port=args.udp_marker_port
+        )
+    )
+
     mgr = MyoManager()                 # callbacks added below
-    win = MainWindow(mgr)
+    win = MainWindow(mgr, udp_listener)
     win.show()
 
     # bind EMG events to both UI plots and the recording panel
@@ -87,6 +127,8 @@ def main():
             print("Main event loop closed.")
             # Explicitly call stop_bg_loop to ensure background tasks are stopped
             stop_bg_loop()
+            if udp_listener is not None:
+                udp_listener.stop()
 
 if __name__ == "__main__":
     main()
