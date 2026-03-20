@@ -1,3 +1,8 @@
+# ARCHIVED
+> **This repository has been archived and is now read-only.** It is no longer actively maintained.
+> 
+> If you wish to continue to develop this code yourself, you can fork it.
+
 # MYO Panel
 
 A PySide6 application for interfacing with the Thalmic MYO armband. Visualize and record EMG signals, IMU data, and vision-based handlandmarks data.
